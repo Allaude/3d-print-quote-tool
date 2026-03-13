@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PrintForge — Instant Quote</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a3e;
+    --accent: #ff6b35;
+    --accent2: #7c3aed;
+    --text: #f0f0ff;
+    --muted: #6b6b8a;
+    --green: #22c55e;
+    --step-active: #ff6b35;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 52px;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: -0.5px;
+  }
+
+  .logo span { color: var(--accent); }
+
+  .badge {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 2px;
+  }
+
+  /* Step indicator */
+  .steps {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 48px;
+  }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    position: relative;
+  }
+
+  .step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 40px;
+    right: 0;
+    top: 18px;
+    height: 1px;
+    background: var(--border);
+    transition: background 0.4s;
+  }
+
+  .step.done:not(:last-child)::after { background: var(--accent); }
+
+  .step-num {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    flex-shrink: 0;
+    transition: all 0.3s;
+    position: relative;
+    z-index: 1;
+    background: var(--bg);
+  }
+
+  .step.active .step-num {
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 20px rgba(255,107,53,0.3);
+  }
+
+  .step.done .step-num {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: white;
+  }
+
+  .step-label { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  .step.active .step-label { color: var(--text); }
+
+  /* Main layout */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 24px;
+    align-items: start;
+  }
+
+  @media (max-width: 768px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 32px;
+  }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .card-title .icon {
+    width: 32px; height: 32px;
+    background: rgba(255,107,53,0.1);
+    border: 1px solid rgba(255,107,53,0.3);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 4px;
+    padding: 60px 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+  }
+
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(255,107,53,0.04);
+  }
+
+  .upload-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+
+  .upload-icon {
+    font-size: 40px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+  }
+
+  .upload-primary {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .upload-sub {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  /* 3D Viewer */
+  #viewer-container {
+    display: none;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  #viewer-canvas {
+    width: 100%;
+    height: 360px;
+    display: block;
+    border-radius: 4px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+  }
+
+  /* Dimensions */
+  .dims-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+
+  .dim-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px 16px;
+    text-align: center;
+  }
+
+  .dim-label { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+  .dim-value { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; color: var(--accent); }
+  .dim-unit { font-size: 10px; color: var(--muted); }
+
+  /* Scale slider */
+  .scale-group { margin-top: 4px; }
+  .scale-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .scale-label { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  .scale-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 12px rgba(255,107,53,0.5);
+  }
+
+  /* Step panels */
+  .step-panel { display: none; }
+  .step-panel.active { display: block; }
+
+  /* Material selector */
+  .material-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px; }
+
+  .mat-card {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .mat-card:hover { border-color: var(--muted); }
+  .mat-card.selected { border-color: var(--accent); background: rgba(255,107,53,0.06); }
+
+  .mat-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .mat-desc { font-size: 10px; color: var(--muted); line-height: 1.5; }
+  .mat-mult {
+    position: absolute;
+    top: 12px; right: 12px;
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+
+  /* Color selector */
+  .color-section label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 14px;
+  }
+
+  .color-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+
+  .color-swatch {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .color-swatch:hover { transform: scale(1.15); }
+  .color-swatch.selected { border-color: white; box-shadow: 0 0 0 3px var(--accent); }
+
+  /* Summary card */
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 28px;
+    position: sticky;
+    top: 24px;
+  }
+
+  .summary-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 14px;
+    font-size: 12px;
+  }
+
+  .summary-row .s-label { color: var(--muted); }
+  .summary-row .s-val { font-family: 'Syne', sans-serif; font-weight: 600; color: var(--text); }
+
+  .summary-divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+  .price-display {
+    text-align: center;
+    padding: 24px 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    margin: 20px 0;
+  }
+
+  .price-label { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+
+  .price-main {
+    font-family: 'Syne', sans-serif;
+    font-size: 44px;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .price-sub { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+  .print-time {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 24px;
+  }
+
+  .print-time strong { color: var(--text); }
+
+  /* Buttons */
+  .btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: 4px;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+
+  .btn-primary:hover { background: #ff8255; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(255,107,53,0.3); }
+  .btn-primary:disabled { opacity: 0.3; transform: none; box-shadow: none; cursor: not-allowed; }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    margin-top: 10px;
+  }
+
+  .btn-outline:hover { border-color: var(--muted); }
+
+  /* Cart success */
+  .cart-success {
+    display: none;
+    text-align: center;
+    padding: 20px;
+  }
+
+  .cart-success .check { font-size: 48px; margin-bottom: 12px; }
+  .cart-success h3 { font-family: 'Syne', sans-serif; font-size: 18px; margin-bottom: 8px; }
+  .cart-success p { font-size: 12px; color: var(--muted); }
+
+  /* Status indicator */
+  .status-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    display: inline-block;
+    margin-right: 6px;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Nav controls */
+  .nav-controls {
+    display: flex;
+    gap: 12px;
+    margin-top: 28px;
+  }
+
+  .nav-controls .btn { flex: 1; }
+
+  /* File info */
+  .file-info {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(34,197,94,0.08);
+    border: 1px solid rgba(34,197,94,0.2);
+    border-radius: 4px;
+    margin-bottom: 20px;
+    font-size: 12px;
+  }
+
+  .file-info.show { display: flex; }
+  .file-icon { font-size: 20px; }
+  .file-name { font-family: 'Syne', sans-serif; font-weight: 600; }
+  .file-size { color: var(--muted); font-size: 11px; }
+
+  /* Warning for no model */
+  .no-model-msg {
+    text-align: center;
+    padding: 48px;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+  <header>
+    <div class="logo">Print<span>Forge</span></div>
+    <div class="badge"><span class="status-dot"></span>Instant Quote</div>
+  </header>
+
+  <!-- Step Indicators -->
+  <div class="steps">
+    <div class="step active" id="step-ind-1">
+      <div class="step-num">1</div>
+      <div class="step-label">Upload Model</div>
+    </div>
+    <div class="step" id="step-ind-2">
+      <div class="step-num">2</div>
+      <div class="step-label">Material</div>
+    </div>
+    <div class="step" id="step-ind-3">
+      <div class="step-num">3</div>
+      <div class="step-label">Order</div>
+    </div>
+  </div>
+
+  <div class="main-grid">
+    <!-- Left: Step content -->
+    <div>
+
+      <!-- STEP 1: Upload -->
+      <div class="step-panel active" id="panel-1">
+        <div class="card">
+          <div class="card-title">
+            <div class="icon">⬆</div>
+            Upload 3D Model
+          </div>
+
+          <div class="file-info" id="file-info">
+            <div class="file-icon">📦</div>
+            <div style="flex:1;">
+              <div class="file-name" id="file-name-display">model.stl</div>
+              <div class="file-size" id="file-size-display">—</div>
+            </div>
+            <button id="btn-change-file" onclick="resetUpload()" style="
+              background:transparent;border:1px solid var(--border);color:var(--muted);
+              font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;
+              padding:6px 14px;border-radius:3px;cursor:pointer;text-transform:uppercase;
+              transition:all 0.2s;white-space:nowrap;flex-shrink:0;
+            " onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+               onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+              ✕ Change File
+            </button>
+          </div>
+
+          <div class="upload-zone" id="upload-zone">
+            <input type="file" id="file-input" accept=".stl,.obj" />
+            <div class="upload-icon">⬡</div>
+            <div class="upload-primary">Drop your STL or OBJ file here</div>
+            <div class="upload-sub">or click to browse · STL / OBJ supported</div>
+          </div>
+
+          <div id="viewer-container">
+            <div id="viewer-wrap" style="position:relative;width:100%;height:400px;border-radius:4px;overflow:hidden;border:1px solid var(--border);background:#0e1117;margin-bottom:16px;">
+              <canvas id="viewer-canvas" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
+              <div id="viewer-filename" style="position:absolute;top:12px;left:14px;font-family:DM Mono,monospace;font-size:11px;color:#9ca3af;letter-spacing:.5px;"></div>
+              <div id="viewer-hint" style="position:absolute;bottom:10px;right:12px;font-size:10px;color:#4b5563;letter-spacing:.5px;">drag to rotate · scroll to zoom</div>
+            </div>
+
+            <div class="dims-row">
+              <div class="dim-box">
+                <div class="dim-label">Width X</div>
+                <div class="dim-value" id="dim-x">—</div>
+                <div class="dim-unit">mm</div>
+              </div>
+              <div class="dim-box">
+                <div class="dim-label">Depth Y</div>
+                <div class="dim-value" id="dim-y">—</div>
+                <div class="dim-unit">mm</div>
+              </div>
+              <div class="dim-box">
+                <div class="dim-label">Height Z</div>
+                <div class="dim-value" id="dim-z">—</div>
+                <div class="dim-unit">mm</div>
+              </div>
+            </div>
+
+            <div class="scale-group">
+              <div class="scale-header">
+                <div class="scale-label">Scale</div>
+                <div class="scale-val" id="scale-display">100%</div>
+              </div>
+              <input type="range" id="scale-slider" min="25" max="300" value="100" step="1" />
+            </div>
+          </div>
+
+          <div class="nav-controls">
+            <button class="btn btn-primary" id="btn-to-step2" disabled>Continue → Choose Material</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2: Material & Color -->
+      <div class="step-panel" id="panel-2">
+        <div class="card">
+          <div class="card-title">
+            <div class="icon">⬡</div>
+            Material & Color
+          </div>
+
+          <div class="material-grid">
+            <div class="mat-card" data-mat="PLA" data-mult="1.0">
+              <div class="mat-mult">BASE</div>
+              <div class="mat-name">PLA</div>
+              <div class="mat-desc">Easy to print · Biodegradable · Great detail</div>
+            </div>
+            <div class="mat-card" data-mat="PETG" data-mult="1.15">
+              <div class="mat-mult">+15%</div>
+              <div class="mat-name">PETG</div>
+              <div class="mat-desc">Flexible · Chemical resistant · Food-safe</div>
+            </div>
+            <div class="mat-card" data-mat="ABS" data-mult="1.20">
+              <div class="mat-mult">+20%</div>
+              <div class="mat-name">ABS</div>
+              <div class="mat-desc">High strength · Heat resistant · Machinable</div>
+            </div>
+            <div class="mat-card" data-mat="ASA" data-mult="1.25">
+              <div class="mat-mult">+25%</div>
+              <div class="mat-name">ASA</div>
+              <div class="mat-desc">UV stable · Weather resistant · Outdoor use</div>
+            </div>
+          </div>
+
+          <div class="color-section">
+            <label>Available Colors — <span id="color-mat-label">PLA</span></label>
+            <div class="color-grid" id="color-grid"></div>
+          </div>
+
+          <div class="nav-controls">
+            <button class="btn btn-outline" onclick="goToStep(1)">← Back</button>
+            <button class="btn btn-primary" id="btn-to-step3" disabled>Continue → Review Order</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3: Review & Order -->
+      <div class="step-panel" id="panel-3">
+        <div class="card">
+          <div class="card-title">
+            <div class="icon">✓</div>
+            Review Your Order
+          </div>
+
+          <div id="order-details">
+            <div class="summary-row">
+              <span class="s-label">FILE</span>
+              <span class="s-val" id="review-file">—</span>
+            </div>
+            <div class="summary-row">
+              <span class="s-label">MATERIAL</span>
+              <span class="s-val" id="review-mat">—</span>
+            </div>
+            <div class="summary-row">
+              <span class="s-label">COLOR</span>
+              <span class="s-val" id="review-color">—</span>
+            </div>
+            <div class="summary-row">
+              <span class="s-label">SCALE</span>
+              <span class="s-val" id="review-scale">—</span>
+            </div>
+            <div class="summary-row">
+              <span class="s-label">VOLUME</span>
+              <span class="s-val" id="review-volume">—</span>
+            </div>
+            <hr class="summary-divider">
+            <div class="summary-row">
+              <span class="s-label">BASE PRICE</span>
+              <span class="s-val" id="review-base">—</span>
+            </div>
+            <div class="summary-row">
+              <span class="s-label">MATERIAL MULTIPLIER</span>
+              <span class="s-val" id="review-mult">—</span>
+            </div>
+            <div class="summary-row">
+              <span class="s-label">SCALE FACTOR</span>
+              <span class="s-val" id="review-sf">—</span>
+            </div>
+          </div>
+
+          <div id="cart-success" class="cart-success">
+            <div class="check">✅</div>
+            <h3>Added to Cart!</h3>
+            <p>Your quote has been saved. Our team will<br>confirm your order within 24 hours.</p>
+          </div>
+
+          <div class="nav-controls" id="review-nav">
+            <button class="btn btn-outline" onclick="goToStep(2)">← Back</button>
+            <button class="btn btn-primary" id="btn-add-cart" disabled>Add to Cart</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right: Summary panel -->
+    <div class="summary-card">
+      <div class="summary-title">Live Quote</div>
+
+      <div class="summary-row">
+        <span class="s-label">Model</span>
+        <span class="s-val" id="sum-file">No file</span>
+      </div>
+      <div class="summary-row">
+        <span class="s-label">Material</span>
+        <span class="s-val" id="sum-mat">PLA</span>
+      </div>
+      <div class="summary-row">
+        <span class="s-label">Color</span>
+        <span class="s-val" id="sum-color">—</span>
+      </div>
+      <div class="summary-row">
+        <span class="s-label">Scale</span>
+        <span class="s-val" id="sum-scale">100%</span>
+      </div>
+      <div class="summary-row">
+        <span class="s-label">Volume</span>
+        <span class="s-val" id="sum-vol">—</span>
+      </div>
+
+      <div class="price-display">
+        <div class="price-label">Estimated Price</div>
+        <div class="price-main" id="sum-price">$—</div>
+        <div class="price-sub">Excludes shipping</div>
+      </div>
+
+      <div class="print-time">
+        ⏱ Est. print time: <strong id="sum-time">—</strong>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Three.js + STL/OBJ Loaders via CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─── Pricing Config ───────────────────────────────────────────────
+const PRICE_PER_CM3 = 0.85; // USD per cm³
+const MIN_PRICE = 4.50;
+const PRINT_SPEED_CM3_PER_HOUR = 8; // cm³/hr average
+
+const MATERIALS = {
+  PLA:  { mult: 1.00, colors: ['#ffffff','#1a1a1a','#e63946','#2a9d8f','#f4a261','#457b9d','#a8dadc','#e9c46a'] },
+  PETG: { mult: 1.15, colors: ['#ffffff','#1a1a1a','#2196f3','#4caf50','#ff9800','#9c27b0','#00bcd4'] },
+  ABS:  { mult: 1.20, colors: ['#ffffff','#1a1a1a','#f44336','#3f51b5','#ff5722','#607d8b'] },
+  ASA:  { mult: 1.25, colors: ['#ffffff','#1a1a1a','#8bc34a','#795548','#ff9800','#546e7a'] },
+};
+
+const COLOR_NAMES = {
+  '#ffffff':'White','#1a1a1a':'Black','#e63946':'Crimson','#2a9d8f':'Teal',
+  '#f4a261':'Peach','#457b9d':'Steel Blue','#a8dadc':'Ice Blue','#e9c46a':'Amber',
+  '#2196f3':'Blue','#4caf50':'Green','#ff9800':'Orange','#9c27b0':'Purple',
+  '#00bcd4':'Cyan','#f44336':'Red','#3f51b5':'Indigo','#ff5722':'Deep Orange',
+  '#607d8b':'Blue Grey','#8bc34a':'Lime','#795548':'Brown','#546e7a':'Slate',
+};
+
+// ─── State ────────────────────────────────────────────────────────
+const state = {
+  step: 1,
+  fileName: '',
+  fileSize: 0,
+  volume: 0,       // cm³
+  rawDims: null,   // {x,y,z} in mm at scale=1
+  scale: 1.0,
+  material: 'PLA',
+  materialSelected: false, // user must explicitly pick a material
+  color: '#ffffff',
+  price: 0,
+};
+
+// ─── Three.js setup ───────────────────────────────────────────────
+let renderer, scene, camera, modelMesh, animFrameId, orbitGroup;
+let viewerInited = false;
+
+function initViewer() {
+  if (viewerInited) return;
+  viewerInited = true;
+
+  const wrap = document.getElementById('viewer-wrap');
+  const canvas = document.getElementById('viewer-canvas');
+  const W = wrap.clientWidth  || 700;
+  const H = wrap.clientHeight || 400;
+
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(W, H);
+  renderer.setClearColor(0x0e1117, 1);
+  renderer.shadowMap.enabled = true;
+
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x0e1117, 0.002);
+
+  camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 5000);
+  camera.position.set(120, 100, 220);
+  camera.lookAt(0, 0, 0);
+
+  // orbitGroup holds the model so we can rotate it around origin
+  orbitGroup = new THREE.Group();
+  scene.add(orbitGroup);
+
+  // ── Lights ──
+  const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+  scene.add(ambient);
+
+  const key = new THREE.DirectionalLight(0xffffff, 0.9);
+  key.position.set(150, 200, 150);
+  key.castShadow = true;
+  scene.add(key);
+
+  const fill = new THREE.DirectionalLight(0x8ab4f8, 0.4);
+  fill.position.set(-100, 50, -80);
+  scene.add(fill);
+
+  const rim = new THREE.DirectionalLight(0xff6b35, 0.25);
+  rim.position.set(0, -80, -150);
+  scene.add(rim);
+
+  // ── Floor grid ──
+  const gridSize = 400;
+  const gridDivs = 20;
+  const gridHelper = new THREE.GridHelper(gridSize, gridDivs, 0x2a2a3e, 0x1c1c2a);
+  gridHelper.position.y = -0.5;
+  scene.add(gridHelper);
+
+  // ── Floor plane (subtle reflection) ──
+  const floorGeo = new THREE.PlaneGeometry(gridSize, gridSize);
+  const floorMat = new THREE.MeshStandardMaterial({
+    color: 0x111118, roughness: 1, metalness: 0, transparent: true, opacity: 0.6
+  });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = -1;
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  // ── Axis arrows ──
+  function makeAxis(dir, color, length) {
+    const origin = new THREE.Vector3(0, 0, 0);
+    const arrow = new THREE.ArrowHelper(dir.normalize(), origin, length, color, length * 0.12, length * 0.06);
+    return arrow;
+  }
+  const axisLen = 60;
+  scene.add(makeAxis(new THREE.Vector3(1, 0, 0), 0xff3333, axisLen)); // X red
+  scene.add(makeAxis(new THREE.Vector3(0, 1, 0), 0x33dd33, axisLen)); // Y green
+  scene.add(makeAxis(new THREE.Vector3(0, 0, 1), 0x3399ff, axisLen)); // Z blue
+
+  // ── Mouse orbit ──
+  let isDragging = false, prevX = 0, prevY = 0;
+  let orbitTheta = 0.5, orbitPhi = 0.4, orbitRadius = 280;
+  let lookAtY = 40; // updated after model loads to vertical midpoint
+
+  function updateCamera() {
+    camera.position.x = orbitRadius * Math.sin(orbitTheta) * Math.cos(orbitPhi);
+    camera.position.y = orbitRadius * Math.sin(orbitPhi);
+    camera.position.z = orbitRadius * Math.cos(orbitTheta) * Math.cos(orbitPhi);
+    camera.lookAt(0, lookAtY, 0);
+  }
+
+  // Expose so loadModel can update lookAt target to model's vertical midpoint
+  window._updateCameraTarget = function(y) {
+    lookAtY = y;
+    updateCamera();
+  };
+
+  updateCamera();
+
+  canvas.addEventListener('mousedown', e => {
+    isDragging = true; prevX = e.clientX; prevY = e.clientY;
+    canvas.style.cursor = 'grabbing';
+  });
+  window.addEventListener('mouseup', () => { isDragging = false; canvas.style.cursor = 'grab'; });
+  window.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    orbitTheta -= (e.clientX - prevX) * 0.008;
+    orbitPhi   = Math.max(-1.2, Math.min(1.2, orbitPhi + (e.clientY - prevY) * 0.006));
+    prevX = e.clientX; prevY = e.clientY;
+    updateCamera();
+  });
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    orbitRadius = Math.max(60, Math.min(800, orbitRadius + e.deltaY * 0.4));
+    updateCamera();
+  }, { passive: false });
+  canvas.style.cursor = 'grab';
+
+  window.addEventListener('resize', resizeRenderer);
+  animate();
+}
+
+function resizeRenderer() {
+  const wrap = document.getElementById('viewer-wrap');
+  const canvas = document.getElementById('viewer-canvas');
+  if (!renderer || !wrap || !canvas) return;
+  const W = wrap.clientWidth;
+  const H = wrap.clientHeight;
+  if (W === 0 || H === 0) return;
+  renderer.setSize(W, H);
+  if (camera) { camera.aspect = W / H; camera.updateProjectionMatrix(); }
+}
+
+function animate() {
+  animFrameId = requestAnimationFrame(animate);
+  renderer?.render(scene, camera);
+}
+
+// ─── STL parser (binary + ASCII) ─────────────────────────────────
+function parseSTL(buffer) {
+  // Try binary first
+  const view = new DataView(buffer);
+  const numTris = view.getUint32(80, true);
+  if (80 + 4 + numTris * 50 === buffer.byteLength) {
+    return parseBinarySTL(view, numTris);
+  }
+  return parseASCIISTL(new TextDecoder().decode(buffer));
+}
+
+function parseBinarySTL(view, numTris) {
+  const positions = [];
+  let offset = 84;
+  for (let i = 0; i < numTris; i++) {
+    offset += 12; // skip normal
+    for (let v = 0; v < 3; v++) {
+      positions.push(view.getFloat32(offset, true));
+      positions.push(view.getFloat32(offset + 4, true));
+      positions.push(view.getFloat32(offset + 8, true));
+      offset += 12;
+    }
+    offset += 2; // attribute
+  }
+  return new Float32Array(positions);
+}
+
+function parseASCIISTL(text) {
+  const positions = [];
+  const re = /vertex\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    positions.push(parseFloat(m[1]), parseFloat(m[2]), parseFloat(m[3]));
+  }
+  return new Float32Array(positions);
+}
+
+// Simple OBJ parser
+function parseOBJ(text) {
+  const verts = [], positions = [];
+  const lines = text.split('\n');
+  for (const line of lines) {
+    const parts = line.trim().split(/\s+/);
+    if (parts[0] === 'v') verts.push([parseFloat(parts[1]),parseFloat(parts[2]),parseFloat(parts[3])]);
+    else if (parts[0] === 'f') {
+      const idx = parts.slice(1).map(p => parseInt(p.split('/')[0]) - 1);
+      // Fan triangulation
+      for (let i = 1; i < idx.length - 1; i++) {
+        [idx[0], idx[i], idx[i+1]].forEach(vi => positions.push(...verts[vi]));
+      }
+    }
+  }
+  return new Float32Array(positions);
+}
+
+// ─── Volume calculation (signed tetrahedron method) ───────────────
+function computeVolume(positions) {
+  let vol = 0;
+  for (let i = 0; i < positions.length; i += 9) {
+    const ax = positions[i],   ay = positions[i+1], az = positions[i+2];
+    const bx = positions[i+3], by = positions[i+4], bz = positions[i+5];
+    const cx = positions[i+6], cy = positions[i+7], cz = positions[i+8];
+    vol += (ax*(by*cz - bz*cy) - ay*(bx*cz - bz*cx) + az*(bx*cy - by*cx)) / 6;
+  }
+  return Math.abs(vol);
+}
+
+// ─── Load model into viewer ───────────────────────────────────────
+function loadModel(positions) {
+  // Remove old mesh
+  if (modelMesh) { orbitGroup.remove(modelMesh); modelMesh.geometry.dispose(); modelMesh = null; }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.computeVertexNormals();
+
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0xb94a2c,
+    roughness: 0.55,
+    metalness: 0.05,
+    side: THREE.DoubleSide,
+  });
+  modelMesh = new THREE.Mesh(geo, mat);
+  modelMesh.castShadow = true;
+  modelMesh.receiveShadow = true;
+
+  // Scale so largest dimension = 100 units — NO rotation applied, preserve original orientation
+  const box = new THREE.Box3().setFromObject(modelMesh);
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const normScale = 100 / maxDim;
+  modelMesh.scale.setScalar(normScale);
+  modelMesh.userData.normScale = normScale;
+
+  // After scaling, recompute box and center the model horizontally (X/Z), sit bottom on Y=0
+  const box2 = new THREE.Box3().setFromObject(modelMesh);
+  const center = box2.getCenter(new THREE.Vector3());
+  modelMesh.position.x = -center.x;
+  modelMesh.position.z = -center.z;
+  modelMesh.position.y = -box2.min.y; // bottom of model sits on Y=0
+
+  orbitGroup.add(modelMesh);
+
+  // Aim camera lookAt at the vertical midpoint of the placed model
+  const modelHeight = box2.max.y - box2.min.y;
+  if (window._updateCameraTarget) window._updateCameraTarget(modelHeight * 0.5);
+
+  // Store real dims from raw geometry bounding box (original units, no scale)
+  let minX=Infinity,minY=Infinity,minZ=Infinity,maxX=-Infinity,maxY=-Infinity,maxZ=-Infinity;
+  for (let i = 0; i < positions.length; i+=3) {
+    minX=Math.min(minX,positions[i]); maxX=Math.max(maxX,positions[i]);
+    minY=Math.min(minY,positions[i+1]); maxY=Math.max(maxY,positions[i+1]);
+    minZ=Math.min(minZ,positions[i+2]); maxZ=Math.max(maxZ,positions[i+2]);
+  }
+  state.rawDims = { x: maxX-minX, y: maxY-minY, z: maxZ-minZ };
+  state.rawVolumeMM3 = computeVolume(positions);
+}
+
+function updateDimensions() {
+  const s = state.scale;
+  const d = state.rawDims;
+  if (!d) return;
+  document.getElementById('dim-x').textContent = (d.x * s).toFixed(1);
+  document.getElementById('dim-y').textContent = (d.y * s).toFixed(1);
+  document.getElementById('dim-z').textContent = (d.z * s).toFixed(1);
+}
+
+// ─── Pricing ─────────────────────────────────────────────────────
+function calcPrice() {
+  if (!state.rawVolumeMM3) { updateSummary(); return; }
+  const scaleFactor = state.scale;
+  const volumeMM3 = state.rawVolumeMM3 * Math.pow(scaleFactor, 3);
+  const volumeCM3 = volumeMM3 / 1000;
+  state.volume = volumeCM3;
+
+  const mult = MATERIALS[state.material].mult;
+  const basePrice = volumeCM3 * PRICE_PER_CM3;
+  state.basePrice = basePrice;
+  state.price = Math.max(MIN_PRICE, basePrice * mult);
+  state.printHours = volumeCM3 / PRINT_SPEED_CM3_PER_HOUR;
+
+  updateSummary();
+}
+
+function updateSummary() {
+  const s = state;
+  document.getElementById('sum-file').textContent = s.fileName || 'No file';
+  document.getElementById('sum-mat').textContent = s.material;
+  document.getElementById('sum-scale').textContent = Math.round(s.scale * 100) + '%';
+
+  const colorName = COLOR_NAMES[s.color] || s.color;
+  document.getElementById('sum-color').textContent = s.color ? colorName : '—';
+
+  if (s.volume > 0) {
+    document.getElementById('sum-vol').textContent = s.volume.toFixed(2) + ' cm³';
+    document.getElementById('sum-price').textContent = '$' + s.price.toFixed(2);
+    const h = Math.floor(s.printHours);
+    const m = Math.round((s.printHours - h) * 60);
+    document.getElementById('sum-time').textContent = h > 0 ? `${h}h ${m}m` : `${m}m`;
+    document.getElementById('sum-add-cart') && (document.getElementById('sum-add-cart').disabled = !state.materialSelected);
+  }
+}
+
+// ─── Color grid ───────────────────────────────────────────────────
+function renderColors(mat) {
+  const grid = document.getElementById('color-grid');
+  grid.innerHTML = '';
+  document.getElementById('color-mat-label').textContent = mat;
+  const colors = MATERIALS[mat].colors;
+  // Reset color selection — user must pick explicitly
+  state.color = null;
+  document.getElementById('sum-color').textContent = '—';
+  document.getElementById('btn-to-step3').disabled = true;
+
+  colors.forEach((c) => {
+    const sw = document.createElement('div');
+    sw.className = 'color-swatch';
+    sw.style.background = c;
+    sw.title = COLOR_NAMES[c] || c;
+    sw.addEventListener('click', () => {
+      document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+      sw.classList.add('selected');
+      state.color = c;
+      document.getElementById('sum-color').textContent = COLOR_NAMES[c] || c;
+      // Both material AND color chosen — unlock Continue
+      document.getElementById('btn-to-step3').disabled = false;
+    });
+    grid.appendChild(sw);
+  });
+}
+
+// ─── Step navigation ──────────────────────────────────────────────
+function goToStep(n) {
+  state.step = n;
+  document.querySelectorAll('.step-panel').forEach((p, i) => {
+    p.classList.toggle('active', i + 1 === n);
+  });
+  document.querySelectorAll('.step').forEach((s, i) => {
+    s.classList.remove('active','done');
+    if (i + 1 < n) s.classList.add('done');
+    if (i + 1 === n) s.classList.add('active');
+  });
+
+  // When entering step 2, reset selections so user must re-pick
+  if (n === 2) {
+    state.materialSelected = false;
+    state.color = null;
+    document.querySelectorAll('.mat-card').forEach(c => c.classList.remove('selected'));
+    document.querySelector('.color-section').style.display = 'none';
+    document.getElementById('btn-to-step3').disabled = true;
+    document.getElementById('btn-add-cart').disabled = true;
+    document.getElementById('sum-mat').textContent = '—';
+    document.getElementById('sum-color').textContent = '—';
+  }
+
+  if (n === 3) populateReview();
+}
+
+function populateReview() {
+  const s = state;
+  document.getElementById('review-file').textContent = s.fileName || '—';
+  document.getElementById('review-mat').textContent = s.material;
+  document.getElementById('review-color').textContent = COLOR_NAMES[s.color] || s.color;
+  document.getElementById('review-scale').textContent = Math.round(s.scale * 100) + '%';
+  document.getElementById('review-volume').textContent = s.volume.toFixed(2) + ' cm³';
+  document.getElementById('review-base').textContent = '$' + (s.basePrice || 0).toFixed(2);
+  document.getElementById('review-mult').textContent = 'x' + MATERIALS[s.material].mult.toFixed(2);
+  document.getElementById('review-sf').textContent = 'x' + Math.pow(s.scale, 3).toFixed(4) + ' (vol)';
+}
+
+// ─── File handling ────────────────────────────────────────────────
+// ─── Reset upload — lets customer swap to a different file ────────
+function resetUpload() {
+  // Clear state
+  state.fileName = '';
+  state.fileSize = 0;
+  state.volume = 0;
+  state.rawDims = null;
+  state.rawVolumeMM3 = 0;
+  state.scale = 1.0;
+
+  // Remove model from scene
+  if (modelMesh) { orbitGroup.remove(modelMesh); modelMesh.geometry.dispose(); modelMesh = null; }
+
+  // Reset file input so same file can be re-selected
+  const fileInput = document.getElementById('file-input');
+  fileInput.value = '';
+
+  // Hide viewer, show upload zone again
+  document.getElementById('viewer-container').style.display = 'none';
+  document.getElementById('file-info').classList.remove('show');
+  document.getElementById('upload-zone').style.display = '';
+
+  // Reset dims + scale UI
+  document.getElementById('dim-x').textContent = '—';
+  document.getElementById('dim-y').textContent = '—';
+  document.getElementById('dim-z').textContent = '—';
+  document.getElementById('scale-slider').value = 100;
+  document.getElementById('scale-display').textContent = '100%';
+
+  // Reset summary panel
+  document.getElementById('sum-file').textContent = 'No file';
+  document.getElementById('sum-vol').textContent = '—';
+  document.getElementById('sum-price').textContent = '$—';
+  document.getElementById('sum-time').textContent = '—';
+  document.getElementById('sum-scale').textContent = '100%';
+
+  // Disable Continue button
+  document.getElementById('btn-to-step2').disabled = true;
+}
+
+function handleFile(file) {
+  if (!file) return;
+  state.fileName = file.name;
+  state.fileSize = file.size;
+
+  document.getElementById('file-name-display').textContent = file.name;
+  const overlay = document.getElementById('viewer-filename');
+  if (overlay) overlay.textContent = file.name;
+  document.getElementById('file-size-display').textContent = (file.size / 1024).toFixed(1) + ' KB';
+  document.getElementById('file-info').classList.add('show');
+  document.getElementById('sum-file').textContent = file.name;
+  document.getElementById('upload-zone').style.display = 'none';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const ext = file.name.split('.').pop().toLowerCase();
+    let positions;
+    if (ext === 'stl') {
+      positions = parseSTL(e.target.result);
+    } else if (ext === 'obj') {
+      positions = parseOBJ(new TextDecoder().decode(e.target.result));
+    } else {
+      alert('Unsupported format. Please use STL or OBJ.');
+      return;
+    }
+
+    // Show container first so wrap has real dimensions
+    const vc = document.getElementById('viewer-container');
+    vc.style.display = 'flex';
+    // Init viewer lazily (needs real layout dimensions)
+    requestAnimationFrame(() => {
+      initViewer();
+      requestAnimationFrame(() => {
+        resizeRenderer();
+        loadModel(positions);
+        updateDimensions();
+        calcPrice();
+      });
+    });
+    document.getElementById('btn-to-step2').disabled = false;
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ─── Event listeners ──────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  // Viewer inits lazily on first file upload
+
+  // File input
+  const fileInput = document.getElementById('file-input');
+  fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+
+  // Drag & drop
+  const zone = document.getElementById('upload-zone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    handleFile(e.dataTransfer.files[0]);
+  });
+
+  // Scale slider
+  document.getElementById('scale-slider').addEventListener('input', e => {
+    const pct = parseInt(e.target.value);
+    state.scale = pct / 100;
+    document.getElementById('scale-display').textContent = pct + '%';
+    document.getElementById('sum-scale').textContent = pct + '%';
+    if (modelMesh) {
+      // modelMesh.scale was set during loadModel to normScale
+      // visually represent user scale on top of that
+      const baseNorm = modelMesh.userData.normScale || 1;
+      modelMesh.scale.setScalar(baseNorm * (pct / 100));
+      // Re-sit on floor
+      const box2 = new THREE.Box3().setFromObject(modelMesh);
+      modelMesh.position.y = -box2.min.y;
+    }
+    updateDimensions();
+    calcPrice();
+  });
+
+  // Step navigation
+  document.getElementById('btn-to-step2').addEventListener('click', () => goToStep(2));
+  document.getElementById('btn-to-step3').addEventListener('click', () => goToStep(3));
+
+  // Material selection
+  document.querySelectorAll('.mat-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.mat-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      state.material = card.dataset.mat;
+      state.materialSelected = true;
+      document.getElementById('sum-mat').textContent = state.material;
+      document.getElementById('btn-add-cart').disabled = false;
+      document.querySelector('.color-section').style.display = 'block';
+      renderColors(state.material);
+      calcPrice();
+    });
+  });
+
+  // Color section hidden until material chosen
+  document.querySelector('.color-section').style.display = 'none';
+
+  // Add to Cart
+  function handleAddToCart() {
+    document.getElementById('order-details').style.display = 'none';
+    document.getElementById('review-nav').style.display = 'none';
+    document.getElementById('cart-success').style.display = 'block';
+  }
+
+  document.getElementById('btn-add-cart').addEventListener('click', handleAddToCart);
+});
+</script>
+</body>
+</html>
