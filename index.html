@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Radicals3DPrint — Instant Quote</title>
+<title>PrintForge — Instant Quote</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
 
   :root {
-    --bg: #ffffff;
-    --surface: #ffffff;
-    --surface2: #ffffff;
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
     --border: #2a2a3e;
     --accent: #ff6b35;
     --accent2: #7c3aed;
-    --text: #000000;
+    --text: #f0f0ff;
     --muted: #6b6b8a;
     --green: #22c55e;
     --step-active: #ff6b35;
@@ -89,23 +89,21 @@
   .step {
     display: flex;
     align-items: center;
-    gap: 12px;
-    flex: 1;
+    gap: 10px;
     position: relative;
+    flex-shrink: 0;
   }
 
-  .step:not(:last-child)::after {
-    content: '';
-    position: absolute;
-    left: 40px;
-    right: 0;
-    top: 18px;
+  /* Connector line lives between steps, not inside them */
+  .step-connector {
+    flex: 1;
     height: 1px;
     background: var(--border);
     transition: background 0.4s;
+    min-width: 32px;
   }
 
-  .step.done:not(:last-child)::after { background: var(--accent); }
+  .step-connector.done { background: var(--accent); }
 
   .step-num {
     width: 36px;
@@ -137,7 +135,14 @@
     color: white;
   }
 
-  .step-label { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  .step-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
   .step.active .step-label { color: var(--text); }
 
   /* Main layout */
@@ -508,7 +513,7 @@
 
 <div class="wrapper">
   <header>
-    <div class="logo">Radicals<span>3DPrint</span></div>
+    <div class="logo">Print<span>Forge</span></div>
     <div class="badge"><span class="status-dot"></span>Instant Quote</div>
   </header>
 
@@ -518,10 +523,12 @@
       <div class="step-num">1</div>
       <div class="step-label">Upload Model</div>
     </div>
+    <div class="step-connector" id="connector-1-2"></div>
     <div class="step" id="step-ind-2">
       <div class="step-num">2</div>
       <div class="step-label">Material</div>
     </div>
+    <div class="step-connector" id="connector-2-3"></div>
     <div class="step" id="step-ind-3">
       <div class="step-num">3</div>
       <div class="step-label">Order</div>
@@ -1119,6 +1126,10 @@ function goToStep(n) {
     if (i + 1 < n) s.classList.add('done');
     if (i + 1 === n) s.classList.add('active');
   });
+
+  // Update connectors
+  document.getElementById('connector-1-2').classList.toggle('done', n > 1);
+  document.getElementById('connector-2-3').classList.toggle('done', n > 2);
 
   // When entering step 2, reset selections so user must re-pick
   if (n === 2) {
